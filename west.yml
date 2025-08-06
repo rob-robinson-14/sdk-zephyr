@@ -23,6 +23,8 @@ manifest:
       url-base: https://github.com/zephyrproject-rtos
     - name: babblesim
       url-base: https://github.com/BabbleSim
+    - name: roro
+      url-base: https://github.com/rob-robinson-14
 
   group-filter: [-babblesim, -optional]
 
@@ -200,7 +202,8 @@ manifest:
       groups:
         - hal
     - name: hal_nordic
-      revision: 2f5d4e5868ab573eac932fa4bc142565073c3c04
+      remote: roro
+      revision: bug-fix-NRFX_BITMASK_TO_BITPOS
       path: modules/hal/nordic
       groups:
         - hal
