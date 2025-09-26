@@ -404,7 +404,7 @@ class NrfBinaryRunner(ZephyrBinaryRunner):
         sw_reset = "RESET_HARD" if self.family in ('nrf54h', 'nrf92') else "RESET_SYSTEM"
         # Default to soft reset on nRF52 only, because ICs in these series can
         # reconfigure the reset pin as a regular GPIO
-        default = sw_reset if self.family == 'nrf52' else "RESET_PIN"
+        default = sw_reset if (self.family == 'nrf52' or self.family == 'nrf71')  else "RESET_PIN"
         kind = (sw_reset if self.softreset else "RESET_PIN" if
                 self.pinreset else default)
 
