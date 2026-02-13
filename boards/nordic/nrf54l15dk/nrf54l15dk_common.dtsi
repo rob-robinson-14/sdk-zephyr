@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <zephyr/dt-bindings/sensor/nrf-vbat_measure.h>
 #include "nrf54l15dk_nrf54l_05_10_15-pinctrl.dtsi"
 
 / {
@@ -71,6 +72,16 @@
 			label = "Push button 3";
 			zephyr,code = <INPUT_KEY_3>;
 		};
+	};
+
+
+	vbat_monitor: vbat_monitor {
+		status = "okay";
+		compatible = "nordic,nrf-vbat";
+		pselp = <VBAT_MEASURE_NRFX_ANALOG_TEST_AVSS>;
+		pseln = <VBAT_MEASURE_NRFX_ANALOG_INTERNAL_VDD>;
+		min-threshold-mv = <1820>;
+
 	};
 
 	aliases {

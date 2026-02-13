@@ -6,6 +6,7 @@
 if SOC_SERIES_NRF54L
 
 rsource "Kconfig.defconfig.nrf54l*"
+rsource "vtf_monitoring/Kconfig"
 
 if ARM
 

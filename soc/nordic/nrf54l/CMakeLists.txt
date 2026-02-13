@@ -7,6 +7,8 @@ zephyr_library_sources(
   )
 zephyr_include_directories(.)
 
+add_subdirectory_ifdef(CONFIG_SOC_VTF_MONITORING vtf_monitoring)
+
 dt_nodelabel(kmu_push_area_node NODELABEL nrf_kmu_reserved_push_area)
 
 # We need a buffer in memory in a static location which can be used by
