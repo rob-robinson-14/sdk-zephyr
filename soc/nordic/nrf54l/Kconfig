@@ -107,4 +107,12 @@ config SOC_NRF54L_ANOMALY_56_WORKAROUND
 	help
 	   This option enables configuration workaround 56 for nRF54L Series SoCs.
 
+config VBAT_MONITOR_ENABLE
+	bool "Enable VBAT monitoring"
+	select  SOC_HEALTH_MONITORING
+
+config VINTERNAL_MONITOR_ENABLE
+	bool "Enable VInternal monitoring"
+	select  SOC_HEALTH_MONITORING
+
 endif # SOC_SERIES_NRF54L
