@@ -128,4 +128,12 @@ config SOC_NRF54L05_DEVELOP_IN_NRF54L15
 	  This symbol needs to be considered by certain system initialization functionality
 	  residing in system_nrf54l.c and SoC erratas.
 
+config VBAT_MONITOR_ENABLE
+	bool "Enable VBAT monitoring"
+	select  SOC_HEALTH_MONITORING
+
+config VINTERNAL_MONITOR_ENABLE
+	bool "Enable VInternal monitoring"
+	select  SOC_HEALTH_MONITORING
+
 endif # SOC_SERIES_NRF54L

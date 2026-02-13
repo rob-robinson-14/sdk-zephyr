@@ -6,6 +6,7 @@
 if SOC_SERIES_NRF54L
 
 rsource "Kconfig.defconfig.nrf54l*"
+rsource "health_monitoring_nrfx/Kconfig"
 
 if ARM
 

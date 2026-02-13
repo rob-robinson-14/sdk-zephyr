@@ -35,6 +35,10 @@ LOG_MODULE_REGISTER(soc, CONFIG_SOC_LOG_LEVEL);
 #include <hal/nrf_regulators.h>
 #include <zephyr/dt-bindings/regulator/nrf5x.h>
 
+#ifdef CONFIG_SOC_HEALTH_MONITORING
+#include "health_monitoring.h"
+#endif
+
 #define LFXO_NODE DT_NODELABEL(lfxo)
 #define HFXO_NODE DT_NODELABEL(hfxo)
 
@@ -174,3 +178,9 @@ void arch_busy_wait(uint32_t time_us)
 
 /* Init must precede sys_clock_driver_init */
 SYS_INIT(nordicsemi_nrf54l_init, EARLY, 0);
+
+#ifdef CONFIG_SOC_HEALTH_MONITORING
+void soc_late_init_hook(){
+	health_monitoring_setup();
+}
+#endif
