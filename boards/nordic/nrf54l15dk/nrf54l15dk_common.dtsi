@@ -73,6 +73,15 @@
 		};
 	};
 
+
+	vbat_monitor: vbat_monitor {
+		status = "okay";
+		compatible = "nordic,nrf-vbat";
+		io-channels = <&adc 0>;
+		invert-voltage;
+
+	};
+
 	aliases {
 		led0 = &led0;
 		led1 = &led1;
@@ -106,6 +115,21 @@
 			   <12 0 &gpio1 12 0>,
 			   <13 0 &gpio1 13 0>,
 			   <14 0 &gpio1 14 0>;
+	};
+};
+
+&adc {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	channel@0 {
+		reg = <0>;
+		zephyr,gain = "ADC_GAIN_1_4";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,input-positive = <NRF_SAADC_AVSS>; //<NRF_SAADC_AIN4>; /* P1.11 */ //NRFX_ANALOG_EXTERNAL_AIN4
+		zephyr,input-negative = <NRF_SAADC_VDD>; //<NRF_SAADC_AIN4>; /* P1.11 */
+		zephyr,resolution = <10>;
 	};
 };
 
