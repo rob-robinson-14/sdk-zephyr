@@ -1,0 +1,62 @@
+# Nordic Semiconductor nRF71 MCU line
+
+# Copyright (c) 2025 Nordic Semiconductor ASA
+# SPDX-License-Identifier: Apache-2.0
+
+config VBAT_MONITOR_ENABLE
+	bool "Enable VBAT monitoring"
+	select  SOC_HEALTH_MONITORING
+
+config VINTERNAL_MONITOR_ENABLE
+	bool "Enable VInternal monitoring"
+	select  SOC_HEALTH_MONITORING
+
+config SOC_HEALTH_MONITORING
+    bool "Enable health monitoring system"
+	default n
+    select ADC
+	select SOC_LATE_INIT_HOOK
+	# Debug
+	select SHELL
+	select KERNEL_SHELL
+    help
+      Enable periodic VBAT voltage monitoring using SAADC.
+      When enabled, the application will periodically measure
+      the battery voltage and trigger a callback if it falls
+      below the configured threshold.
+
+
+if SOC_HEALTH_MONITORING
+
+config VBAT_MONITOR_INTERVAL_MS
+	int "VBAT measurement interval (milliseconds)"
+	default 2000
+	range 100 3600000
+	help
+	  Interval between VBAT measurements in milliseconds.
+	  Minimum: 100 ms
+	  Maximum: 3600000 ms (1 hour)
+
+config VBAT_MONITOR_LOWER_THRESHOLD_MV
+	int "VBAT low threshold (millivolts)"
+	default 250
+	range 200 5000
+	help
+	  Battery voltage threshold in millivolts. When the measured
+	  voltage falls below this value, the low battery callback
+	  will be triggered.
+	  Typical range: 2000-5000 mV
+
+config VBAT_MONITOR_LOG_LEVEL
+	int "VBAT monitor log level"
+	default 3
+	range 0 4
+	help
+	  Log level for VBAT monitor module:
+	  0 = OFF
+	  1 = ERROR
+	  2 = WARN
+	  3 = INFO
+	  4 = DEBUG
+
+endif # VBAT_MONITOR_ENABLE

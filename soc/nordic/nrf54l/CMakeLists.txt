@@ -7,6 +7,15 @@ zephyr_library_sources(
   )
 zephyr_include_directories(.)
 
+if(CONFIG_SOC_HEALTH_MONITORING)
+  zephyr_include_directories(
+    health_monitoring
+  )
+  zephyr_library_sources(
+    health_monitoring/health_monitoring.c
+  )
+endif()
+
 dt_nodelabel(kmu_push_area_node NODELABEL nrf_kmu_reserved_push_area)
 
 # We need a buffer in memory in a static location which can be used by
