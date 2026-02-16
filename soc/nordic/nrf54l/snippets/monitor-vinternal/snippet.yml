@@ -1,0 +1,4 @@
+name: monitor-vinternal
+append:
+  EXTRA_DTC_OVERLAY_FILE: v_internal_monitor.overlay
+  EXTRA_DTC_OVERLAY_FILE: vbatt_monitor.overlay

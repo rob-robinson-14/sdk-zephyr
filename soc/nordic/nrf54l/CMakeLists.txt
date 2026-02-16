@@ -7,6 +7,11 @@ zephyr_library_sources(
   )
 zephyr_include_directories(.)
 
+set(SNIPPET_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
+
+
+# set(SNIPPET monitor-vinternal)
+
 if(CONFIG_SOC_HEALTH_MONITORING)
   zephyr_include_directories(
     health_monitoring
