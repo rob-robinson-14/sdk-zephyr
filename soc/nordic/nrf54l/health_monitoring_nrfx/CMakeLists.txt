@@ -4,7 +4,8 @@
 cmake_minimum_required(VERSION 3.20.0)
 
 zephyr_library_sources(health_monitoring.c
-                      battery_monitor.c)
+                      battery_monitor.c
+                      temperature_monitor.c)
 
 zephyr_include_directories(.)
 

@@ -9,6 +9,11 @@ config VBAT_MONITOR_ENABLE
 	select NRFX_SAADC
 	# select ADC # TODO: Only enable to verify error in CMakelists.txt
 
+config DIE_TEMP_MONITOR_ENABLE
+	bool "Enable die temperature monitoring"
+	select SOC_HEALTH_MONITORING
+	select SENSOR
+	select CONFIG_TEMP_NRF5
 
 config VINTERNAL_MONITOR_ENABLE
 	bool "Enable VInternal monitoring"
@@ -50,6 +55,19 @@ config VBAT_MONITOR_LOWER_THRESHOLD_MV
 # TODO: Set default and voltage range to expected
 
 endif # VBAT_MONITOR_ENABLE
+
+if DIE_TEMP_MONITOR_ENABLE
+
+config DIE_TEMP_MONITOR_INTERVAL_MS
+	int "Die temperature measurement interval (milliseconds)"
+	default 3000
+	range 100 3600000
+	help
+	  Interval between die temperature measurements in milliseconds.
+	  Minimum: 100 ms
+	  Maximum: 3600000 ms (1 hour)
+
+endif # DIE_TEMP_MONITOR_ENABLE
 
 if SOC_HEALTH_MONITORING
 
