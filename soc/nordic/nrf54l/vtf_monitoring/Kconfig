@@ -10,6 +10,11 @@ config VBAT_MONITOR_ENABLE
 	select SENSOR
 	select NRF_VBAT
 
+config DIE_TEMP_MONITOR_ENABLE
+	bool "Enable die temperature monitoring"
+	select SOC_VTF_MONITORING
+	select SENSOR
+	select CONFIG_TEMP_NRF5
 
 config SOC_VTF_MONITORING
 	bool "Enable vtf monitoring system"
@@ -37,6 +42,32 @@ config VBAT_MONITOR_INTERVAL_MS
 	  Maximum: 3600000 ms (1 hour)
 
 endif # VBAT_MONITOR_ENABLE
+
+if DIE_TEMP_MONITOR_ENABLE
+
+config DIE_TEMP_MONITOR_INTERVAL_MS
+	int "Die temperature measurement interval (milliseconds)"
+	default 3000
+	range 100 3600000
+	help
+	  Interval between die temperature measurements in milliseconds.
+	  Minimum: 100 ms
+	  Maximum: 3600000 ms (1 hour)
+
+endif # DIE_TEMP_MONITOR_ENABLE
+
+if DIE_TEMP_MONITOR_ENABLE
+
+config DIE_TEMP_MONITOR_INTERVAL_MS
+	int "Die temperature measurement interval (milliseconds)"
+	default 3000
+	range 100 3600000
+	help
+	  Interval between die temperature measurements in milliseconds.
+	  Minimum: 100 ms
+	  Maximum: 3600000 ms (1 hour)
+
+endif # DIE_TEMP_MONITOR_ENABLE
 
 if SOC_VTF_MONITORING
 
