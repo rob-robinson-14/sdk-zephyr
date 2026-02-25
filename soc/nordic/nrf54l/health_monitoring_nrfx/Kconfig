@@ -1,0 +1,87 @@
+# Nordic Semiconductor nRF71 MCU line
+
+# Copyright (c) 2025 Nordic Semiconductor ASA
+# SPDX-License-Identifier: Apache-2.0
+
+config VBAT_MONITOR_ENABLE
+	bool "Enable VBAT monitoring"
+	select  SOC_HEALTH_MONITORING
+	select NRFX_SAADC
+	# select ADC # TODO: Only enable to verify error in CMakelists.txt
+
+config DIE_TEMP_MONITOR_ENABLE
+	bool "Enable die temperature monitoring"
+	select SOC_HEALTH_MONITORING
+	select SENSOR
+	select CONFIG_TEMP_NRF5
+
+config VINTERNAL_MONITOR_ENABLE
+	bool "Enable VInternal monitoring"
+	select  SOC_HEALTH_MONITORING
+
+config SOC_HEALTH_MONITORING
+	bool "Enable health monitoring system"
+	default n
+	select SOC_LATE_INIT_HOOK
+	# Debug
+	select SHELL
+	select KERNEL_SHELL
+	select LOG
+	help
+		Enable periodic VBAT voltage monitoring using SAADC.
+		When enabled, the application will periodically measure
+		the battery voltage and trigger a callback if it falls
+		below the configured threshold.
+
+if VBAT_MONITOR_ENABLE
+
+config VBAT_MONITOR_INTERVAL_MS
+	int "VBAT measurement interval (milliseconds)"
+	default 5000
+	range 100 3600000
+	help
+	  Interval between VBAT measurements in milliseconds.
+	  Minimum: 100 ms
+	  Maximum: 3600000 ms (1 hour)
+
+config VBAT_MONITOR_LOWER_THRESHOLD_MV
+	int "VBAT low threshold (millivolts)"
+	default 50
+	range 50 5000
+	help
+	  Battery voltage threshold in millivolts. When the measured
+	  voltage falls below this value, the low battery callback
+	  will be triggered.
+# TODO: Set default and voltage range to expected
+
+endif # VBAT_MONITOR_ENABLE
+
+if DIE_TEMP_MONITOR_ENABLE
+
+config DIE_TEMP_MONITOR_INTERVAL_MS
+	int "Die temperature measurement interval (milliseconds)"
+	default 3000
+	range 100 3600000
+	help
+	  Interval between die temperature measurements in milliseconds.
+	  Minimum: 100 ms
+	  Maximum: 3600000 ms (1 hour)
+
+endif # DIE_TEMP_MONITOR_ENABLE
+
+if SOC_HEALTH_MONITORING
+
+#TODO: Align this with style used elsewhere
+config HEALTH_MONITOR_LOG_LEVEL
+	int "VBAT monitor log level"
+	default 3
+	range 0 4
+	help
+	  Log level for VBAT monitor module:
+	  0 = OFF
+	  1 = ERROR
+	  2 = WARN
+	  3 = INFO
+	  4 = DEBUG
+
+endif # VBAT_MONITOR_ENABLE
