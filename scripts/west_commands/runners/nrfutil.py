@@ -130,6 +130,9 @@ class NrfUtilBinaryRunner(NrfBinaryRunner):
         if op_type == 'program':
             cmd += ['--firmware', _op['firmware']['file']]
             opts = _op['options']
+            cmd.append("--swd-clock-frequency")
+            cmd.append("1000")
+            cmd.append("--x-worker-timeout=1000000")
             # populate the options
             cmd.append('--options')
             cli_opts = f"chip_erase_mode={opts['chip_erase_mode']}"
