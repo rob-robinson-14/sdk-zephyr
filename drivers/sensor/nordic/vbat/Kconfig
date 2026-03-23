@@ -1,0 +1,32 @@
+# Copyright (c) 2026 Nordic Semiconductor ASA
+#
+# SPDX-License-Identifier: Apache-2.0
+
+config NRF_VBAT
+	bool "nRF battery voltage sensor (nrfx SAADC, not Zephyr ADC driver)"
+	default y
+	depends on DT_HAS_NORDIC_NRF_VBAT_ENABLED
+	depends on !ADC_NRFX_SAADC
+	select NRFX_SAADC
+	help
+	  SAADC is owned directly by this sensor driver via nrfx. You cannot enable
+	  the Zephyr nRF SAADC shim (CONFIG_ADC_NRFX_SAADC) at the same time.
+
+	  The ADC channel referenced by io-channels supplies gain, reference,
+	  acquisition time, inputs, resolution, and oversampling. Optional
+	  min-threshold-mv on the vbat node sets the SAADC low-limit interrupt
+	  (see nrf_vbat_below_threshold()).
+
+if NRF_VBAT
+
+config NRF_VBAT_INIT_TIMEOUT_MS
+	int "Timeout for SAADC calibration and first sample during init (ms)"
+	default 2000
+	range 100 60000
+
+config NRF_VBAT_SAMPLE_TIMEOUT_MS
+	int "Timeout for sensor_sample_fetch() waiting on SAADC DONE (ms)"
+	default 500
+	range 10 10000
+
+endif # NRF_VBAT
