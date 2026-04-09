@@ -18,12 +18,6 @@
 
 #include <hal/nrf_auxpll.h>
 
-
-/* Check dt-bindings match MDK frequency division definitions*/
-#define CHECK_DTS_BINDING_VS_MDK(dt, mdk) \
-	BUILD_ASSERT((mdk) == (dt), \
-		"Different " #mdk " definition in MDK and devicetree binding")
-
 CHECK_DTS_BINDING_VS_MDK(NRF_AUXPLL_FREQ_DIV_MIN,	 NRF_AUXPLL_FREQUENCY_DIV_MIN);
 CHECK_DTS_BINDING_VS_MDK(NRF_AUXPLL_FREQ_DIV_AUDIO_44K1, NRF_AUXPLL_FREQUENCY_AUDIO_44K1);
 CHECK_DTS_BINDING_VS_MDK(NRF_AUXPLL_FREQ_DIV_USB24M,	 NRF_AUXPLL_FREQUENCY_USB_24M);

@@ -7,6 +7,8 @@
 #ifndef ZEPHYR_INCLUDE_DT_BINDINGS_CLOCK_NRF_AUXPLL_H_
 #define ZEPHYR_INCLUDE_DT_BINDINGS_CLOCK_NRF_AUXPLL_H_
 
+#include <zephyr/dt-bindings/dt-mdk-checker.h>
+
 #define NRF_AUXPLL_FREQ_DIV_MIN        0
 #define NRF_AUXPLL_FREQ_DIV_AUDIO_44K1 15309
 #define NRF_AUXPLL_FREQ_DIV_USB24M     32768
