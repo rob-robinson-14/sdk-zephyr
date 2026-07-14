@@ -13,13 +13,13 @@
 #define ALARM_CH 0
 #define TIMEOUT_US 100
 
-enum rramc_mode {
-	/* Default mode where RRAMC goes to low power state and had approx.15 us wake up time. */
-	RRAMC_DEFAULT,
+enum flash_controller_mode {
+	/* Default mode where FLASH_CONTROLLER goes to low power state and had approx.15 us wake up time. */
+	FLASH_CONTROLLER_DEFAULT,
 	/* Using nrf_sys_event API to schedule a PPI wake up before expected interrupt. */
-	RRAMC_PPI_WAKEUP,
-	/* Using nrf_sys_event API to change the power mode of RRAMC to 0 us wake up time. */
-	RRAMC_POWER_MODE,
+	FLASH_CONTROLLER_PPI_WAKEUP,
+	/* Using nrf_sys_event API to change the power mode of FLASH_CONTROLLER to 0 us wake up time. */
+	FLASH_CONTROLLER_POWER_MODE,
 };
 
 static void counter_handler(const struct device *counter_dev, uint8_t ch_id,
@@ -53,7 +53,7 @@ static uint32_t counter_alarm_execute(const struct device *counter_dev,
 	return k_cycle_get_32() - now;
 }
 
-static void sys_event_irq_latency_run(enum rramc_mode mode)
+static void sys_event_irq_latency_run(enum flash_controller_mode mode)
 {
 	const struct device *counter = DEVICE_DT_GET(DT_NODELABEL(sample_counter));
 	struct counter_alarm_cfg alarm_cfg;
@@ -62,8 +62,8 @@ static void sys_event_irq_latency_run(enum rramc_mode mode)
 	uint32_t rpt = 10;
 	uint32_t cyc;
 	int event_handle;
-	const char *mode_str = (mode == RRAMC_DEFAULT) ? "default RRAMC mode" :
-		(mode == RRAMC_PPI_WAKEUP) ? "RRAMC waken by PPI" : "RRAMC Standby mode";
+	const char *mode_str = (mode == FLASH_CONTROLLER_DEFAULT) ? "default FLASH_CONTROLLER mode" :
+		(mode == FLASH_CONTROLLER_PPI_WAKEUP) ? "FLASH_CONTROLLER waken by PPI" : "FLASH_CONTROLLER Standby mode";
 
 	counter_start(counter);
 	alarm_cfg.flags = 0;
@@ -73,17 +73,17 @@ static void sys_event_irq_latency_run(enum rramc_mode mode)
 	cyc = 0;
 	for (int i = 0; i < rpt; i++) {
 		sys_cache_instr_invd_all();
-		if (mode != RRAMC_DEFAULT) {
-			uint32_t t = (mode == RRAMC_PPI_WAKEUP) ? (delay + delay_adj) : 0;
+		if (mode != FLASH_CONTROLLER_DEFAULT) {
+			uint32_t t = (mode == FLASH_CONTROLLER_PPI_WAKEUP) ? (delay + delay_adj) : 0;
 
 			event_handle = nrf_sys_event_register(t, true);
-			if (mode == RRAMC_PPI_WAKEUP && event_handle == 32) {
+			if (mode == FLASH_CONTROLLER_PPI_WAKEUP && event_handle == 32) {
 				printk("err\n");
 			}
 		}
 
 		cyc += counter_alarm_execute(counter, &alarm_cfg, K_USEC(delay + 100));
-		if (mode != RRAMC_DEFAULT) {
+		if (mode != FLASH_CONTROLLER_DEFAULT) {
 			(void)nrf_sys_event_unregister(event_handle, false);
 		}
 	}
@@ -96,9 +96,11 @@ static void sys_event_irq_latency_run(enum rramc_mode mode)
 
 static void sys_event_irq_latency(void)
 {
-	sys_event_irq_latency_run(RRAMC_DEFAULT);
-	sys_event_irq_latency_run(RRAMC_POWER_MODE);
-	sys_event_irq_latency_run(RRAMC_PPI_WAKEUP);
+	sys_event_irq_latency_run(FLASH_CONTROLLER_DEFAULT);
+	sys_event_irq_latency_run(FLASH_CONTROLLER_POWER_MODE);
+#ifdef CONFIG_NRF_SYS_EVENT_USE_GPPI
+	sys_event_irq_latency_run(FLASH_CONTROLLER_PPI_WAKEUP);
+#endif
 }
 #endif /* CONFIG_NRF_SYS_EVENT_IRQ_LATENCY */
 

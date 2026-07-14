@@ -57,16 +57,17 @@ tests:
       - ophelia4ev/nrf54l15/cpuapp
     extra_configs:
       - CONFIG_SOC_NRF_FORCE_CONSTLAT=y
-  sample.boards.nordic.nrf_sys_event.rramc_wakeup:
+  sample.boards.nordic.nrf_sys_event.irq_latency:
     harness: pytest
     harness_config:
       pytest_root:
-        - "pytest/test_reg_event.py::test_rramc_wakeup"
+        - "pytest/test_reg_event.py::test_irq_latency"
     extra_configs:
       - CONFIG_NRF_SYS_EVENT_IRQ_LATENCY=y
     platform_allow:
       - nrf54l15dk/nrf54l15/cpuapp
       - nrf54lm20dk/nrf54lm20a/cpuapp
       - nrf54lm20dk/nrf54lm20b/cpuapp
+      - nrf7120dk/nrf7120/cpuapp
     integration_platforms:
       - nrf54l15dk/nrf54l15/cpuapp
