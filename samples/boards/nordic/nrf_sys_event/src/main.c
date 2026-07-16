@@ -7,11 +7,16 @@
 #include <nrf_sys_event.h>
 #include <zephyr/drivers/counter.h>
 #include <zephyr/cache.h>
+#include <zephyr/kernel.h>
 #include <stdio.h>
 
 #ifdef CONFIG_NRF_SYS_EVENT_IRQ_LATENCY
 #define ALARM_CH 0
+#if IS_ENABLED(CONFIG_HAS_HW_NRF_MRAMC)
+#define TIMEOUT_US 1000 /* 0x6400 autopowerdown cycles at 64 MHz + margin */
+#else
 #define TIMEOUT_US 100
+#endif
 
 enum flash_controller_mode {
 	/* Default mode where FLASH_CONTROLLER goes to low power state and had approx.15 us wake up time. */
@@ -38,17 +43,31 @@ static uint32_t counter_alarm_execute(const struct device *counter_dev,
 	k_sem_init(&sem, 0, 1);
 	alarm_cfg->user_data = &sem;
 
+#if IS_ENABLED(CONFIG_HAS_HW_NRF_MRAMC)
+	k_sched_lock();
+#endif
 	now = k_cycle_get_32();
 	err = counter_set_channel_alarm(counter_dev, ALARM_CH, alarm_cfg);
 	if (err < 0) {
 		printf("Failed to set the counter alarm.\n");
+#if IS_ENABLED(CONFIG_HAS_HW_NRF_MRAMC)
+		k_sched_unlock();
+#endif
 		return 0;
 	}
+
+#if IS_ENABLED(CONFIG_HAS_HW_NRF_MRAMC)
+	while (k_sem_take(&sem, K_NO_WAIT) != 0) {
+		__WFI();
+	}
+	k_sched_unlock();
+#else
 	err = k_sem_take(&sem, timeout);
 	if (err < 0) {
 		printf("Failed waiting for counter alarm.\n");
 		return 0;
 	}
+#endif
 
 	return k_cycle_get_32() - now;
 }
@@ -59,7 +78,7 @@ static void sys_event_irq_latency_run(enum flash_controller_mode mode)
 	struct counter_alarm_cfg alarm_cfg;
 	uint32_t delay = TIMEOUT_US;
 	uint32_t delay_adj = 4;
-	uint32_t rpt = 10;
+	uint32_t rpt = 100;
 	uint32_t cyc;
 	int event_handle;
 	const char *mode_str = (mode == FLASH_CONTROLLER_DEFAULT) ? "default FLASH_CONTROLLER mode" :
@@ -96,6 +115,12 @@ static void sys_event_irq_latency_run(enum flash_controller_mode mode)
 
 static void sys_event_irq_latency(void)
 {
+#if IS_ENABLED(CONFIG_HAS_HW_NRF_MRAMC)
+	printf("NVM controller: MRAMC\n");
+#else
+	printf("NVM controller: RRAMC\n");
+#endif
+
 	sys_event_irq_latency_run(FLASH_CONTROLLER_DEFAULT);
 	sys_event_irq_latency_run(FLASH_CONTROLLER_POWER_MODE);
 #ifdef CONFIG_NRF_SYS_EVENT_USE_GPPI
