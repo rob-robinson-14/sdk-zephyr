@@ -14,6 +14,11 @@
  * configured for lowest latency until matching number of calls to
  * nrf_sys_event_release_global_constlat() occur.
  *
+ * On TF-M non-secure builds, manual NVM low-latency register/unregister
+ * (@ref nrf_sys_event_register / @ref nrf_sys_event_unregister with handle
+ * @ref NRF_SYS_EVENT_MANUAL_HANDLE) is handled by a PSA service in the
+ * secure domain. GRTC/GPPI timed wakeups remain in non-secure.
+ *
  * @retval 0 if successful
  * @retval -errno code otherwise
  */

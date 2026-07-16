@@ -9,15 +9,22 @@ import re
 from twister_harness import DeviceAdapter
 
 
+def _parse_alarm_timing(output: str, mode_label: str) -> int:
+    match = re.search(
+        rf"Alarm set for \d+ us, execution took:(\d+) \({re.escape(mode_label)}\)",
+        output,
+    )
+    assert match is not None, f"Timing for {mode_label} was NOT found"
+    return int(match.group(1))
+
+
 def test_irq_latency(dut: DeviceAdapter):
     """
     PyTest code for samples/boards/nordic/nrf_sys_event, sample configurations:
     - sample.boards.nordic.nrf_sys_event.irq_latency,
     - sample.boards.nordic.nrf_sys_event.irq_latency.ppi.
     Parse logs from serial port. If the Register Event API was used correctly,
-    code execution shall be faster by ~14 us when event was registered.
-    If the API works correctly, Flash Controller is woken up just before event occurs.
-    Thus, there is no delay resulting from Flash Controller getting ready.
+    code execution shall be faster when low-latency NVM mode is active.
     """
 
     TIMEOUT = 5
@@ -32,24 +39,22 @@ def test_irq_latency(dut: DeviceAdapter):
         )
     )
 
-    # Get execution times
-    t_default_str = re.search(
-        r"Alarm set for 100 us, execution took:(.+) \(default Flash Controller mode\)", output
-    ).group(1)
-    assert t_default_str is not None, "Timing for the default Flash Controller mode was NOT found"
-    t_default = int(t_default_str)
+    is_mramc = "NVM controller: MRAMC" in output
 
-    t_standby_str = re.search(
-        r"Alarm set for 100 us, execution took:(.+) \(Flash Controller Standby mode\)", output
-    ).group(1)
-    assert t_standby_str is not None, "Timing for Flash Controller Standby mode was NOT found"
-    t_standby = int(t_standby_str)
+    if is_mramc:
+        t_default = _parse_alarm_timing(output, "default FLASH_CONTROLLER mode")
+        t_standby = _parse_alarm_timing(output, "FLASH_CONTROLLER Standby mode")
+        _parse_alarm_timing(output, "MRAMC autopowerdown OffTrimRetain explicit")
+        _parse_alarm_timing(output, "MRAMC autopowerdown MramOff explicit")
 
-    t_ppi_str = re.search(
-        r"Alarm set for 100 us, execution took:(.+) \(Flash Controller woken by PPI\)", output
-    ).group(1)
-    assert t_ppi_str is not None, "Timing for Flash Controller Standby mode was NOT found"
-    t_ppi = int(t_ppi_str)
+        assert t_default > t_standby + MIN_DIFF, (
+            f"{t_default} is NOT larger than {t_standby} + {MIN_DIFF}"
+        )
+        return
+
+    t_default = _parse_alarm_timing(output, "default FLASH_CONTROLLER mode")
+    t_standby = _parse_alarm_timing(output, "FLASH_CONTROLLER Standby mode")
+    t_ppi = _parse_alarm_timing(output, "FLASH_CONTROLLER waken by PPI")
 
     # Check if Flash Controller standby mode results in faster code execution
     assert t_default > t_standby + MIN_DIFF, (
