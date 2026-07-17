@@ -10,10 +10,15 @@
 #ifdef CONFIG_NRF_SYS_EVENT_IRQ_LATENCY
 #include <nrfx_grtc.h>
 #include <zephyr/drivers/timer/nrf_grtc_timer.h>
+#include <nrf_sys_event_tfm_low_latency.h>
 #ifdef RRAMC_PRESENT
 #include <hal/nrf_rramc.h>
 #elif defined(MRAMC_PRESENT)
 #include <hal/nrf_mramc.h>
+#endif
+#if IS_ENABLED(CONFIG_TRUSTED_EXECUTION_NONSECURE) && \
+	IS_ENABLED(CONFIG_NRF_TFM_SYS_EVENT_SERVICE)
+#include <tfm_ioctl_core_api.h>
 #endif
 #endif
 LOG_MODULE_DECLARE(soc, CONFIG_SOC_LOG_LEVEL);
@@ -134,21 +139,6 @@ static uint32_t chan_mask;
  */
 #define NVM_WAKEUP_US (NVM_HW_WAKEUP_US - 1)
 
-static void irq_low_latency_on(bool enable)
-{
-#ifdef RRAMC_POWER_LOWPOWERCONFIG_MODE_Standby
-	nrf_rramc_lp_mode_set(NRF_RRAMC, enable ? NRF_RRAMC_LP_STANDBY : NRF_RRAMC_LP_POWER_OFF);
-#elif defined(MRAMC_POWER_AUTOPOWERDOWN_ENABLE_Enable)
-	nrf_mramc_power_autopowerdown_t cfg;
-	nrf_mramc_power_autopowerdown_get(NRF_MRAMC, &cfg);
-	if (enable) {
-		cfg.enable = MRAMC_POWER_AUTOPOWERDOWN_ENABLE_Disable;
-	} else {
-		cfg.enable = MRAMC_POWER_AUTOPOWERDOWN_ENABLE_Enable;
-	}
-	nrf_mramc_power_autopowerdown_set(NRF_MRAMC, &cfg);
-#endif
-}
 
 #ifdef CONFIG_ZERO_LATENCY_IRQS
 static uint32_t full_irq_lock(void)
@@ -166,7 +156,7 @@ static void full_irq_unlock(uint32_t mcu_critical_state)
 	__set_PRIMASK(mcu_critical_state);
 }
 
-#define LOCKED(lock) \
+#define LOCKED() \
 	for (uint32_t __tmp = 0, __key = full_irq_lock(); !__tmp; full_irq_unlock(__key), __tmp = 1)
 #else
 static struct k_spinlock event_lock;
@@ -178,7 +168,7 @@ union nrf_sys_evt_us {
 	uint64_t abs;
 };
 
-static int event_register(union nrf_sys_evt_us us, bool force, bool abs)
+static int event_register(union nrf_sys_evt_us us, bool force, bool abs, bool *make_psa_call)
 {
 	int rv;
 
@@ -201,7 +191,12 @@ static int event_register(union nrf_sys_evt_us us, bool force, bool abs)
 			rv = -ENOSYS;
 		} else {
 			if (event_ref_cnt == 0) {
-				irq_low_latency_on(true);
+#if IS_ENABLED(CONFIG_TRUSTED_EXECUTION_NONSECURE) && \
+	IS_ENABLED(CONFIG_NRF_TFM_SYS_EVENT_SERVICE)
+				*make_psa_call = true;
+#else
+				nrf_sys_event_tfm_low_latency_on();
+#endif
 			}
 			event_ref_cnt++;
 			rv = NRF_SYS_EVENT_MANUAL_HANDLE;
@@ -211,20 +206,33 @@ static int event_register(union nrf_sys_evt_us us, bool force, bool abs)
 	return rv;
 }
 
-int nrf_sys_event_register(uint32_t us, bool force)
+static int nrf_sys_event_register_internal(uint32_t us, bool force, bool abs, bool from_zil)
 {
-	return event_register((union nrf_sys_evt_us)us, force, false);
+	bool make_psa_call = false;
+	int event_handle;
+	event_handle = event_register((union nrf_sys_evt_us)us, force, abs, &make_psa_call);
+	__ASSERT(!(from_zil && make_psa_call), "Tried to make PSA call from zil context.");
+
+#if IS_ENABLED(CONFIG_TRUSTED_EXECUTION_NONSECURE) && \
+	IS_ENABLED(CONFIG_NRF_TFM_SYS_EVENT_SERVICE)
+	if (make_psa_call) {
+		int32_t result;
+		int32_t ret = tfm_platform_sys_event_low_latency_on(&result);
+
+		if (ret != TFM_PLATFORM_ERR_SUCCESS) {
+			LOG_ERR("PSA call to request low latency failed (%d)", ret);
+			return -EIO;
+		}
+	}
+#endif
+	return event_handle;
 }
 
-int nrf_sys_event_abs_register(uint64_t us, bool force)
-{
-	return event_register((union nrf_sys_evt_us)us, force, true);
-}
-
-int nrf_sys_event_unregister(int handle, bool cancel)
+int nrf_sys_event_unregister_internal(int handle, bool cancel, bool from_zil)
 {
 	__ASSERT_NO_MSG(handle >= 0);
 	int rv = 0;
+	bool make_psa_call = false;
 
 	if (handle != NRF_SYS_EVENT_MANUAL_HANDLE) {
 		if (cancel) {
@@ -235,21 +243,75 @@ int nrf_sys_event_unregister(int handle, bool cancel)
 	}
 
 	LOCKED() {
-		if (IS_ENABLED(CONFIG_TRUSTED_EXECUTION_NONSECURE)) {
-			rv = -EINVAL;
-		} else {
-			__ASSERT_NO_MSG(event_ref_cnt > 0);
-			event_ref_cnt--;
-			if (event_ref_cnt == 0) {
-				irq_low_latency_on(false);
-			}
+#if IS_ENABLED(CONFIG_TRUSTED_EXECUTION_NONSECURE) && \
+	!IS_ENABLED(CONFIG_NRF_TFM_SYS_EVENT_SERVICE)
+		rv = -EINVAL;
+#else
+		__ASSERT_NO_MSG(event_ref_cnt > 0);
+		event_ref_cnt--;
+		if (event_ref_cnt == 0) {
+#if IS_ENABLED(CONFIG_TRUSTED_EXECUTION_NONSECURE) && \
+	IS_ENABLED(CONFIG_NRF_TFM_SYS_EVENT_SERVICE)
+			make_psa_call = true;
+#else
+			nrf_sys_event_tfm_low_latency_off();
+#endif
+		}
+#endif
+	}
+
+#if IS_ENABLED(CONFIG_TRUSTED_EXECUTION_NONSECURE) && \
+	IS_ENABLED(CONFIG_NRF_TFM_SYS_EVENT_SERVICE)
+	if (make_psa_call) {
+		int32_t result;
+		int32_t ret = tfm_platform_sys_event_low_latency_off(&result);
+
+		if (ret != TFM_PLATFORM_ERR_SUCCESS) {
+			LOG_ERR("PSA call to release low latency failed (%d)", ret);
+			return -EIO;
 		}
 	}
+#endif
 
 	return rv;
 }
 
+int nrf_sys_event_register_zil(uint32_t us, bool force)
+{
+	return nrf_sys_event_register_internal(us, force, false, true);
+}
+
+int nrf_sys_event_register(uint32_t us, bool force)
+{
+	return nrf_sys_event_register_internal(us, force, false, false);
+}
+
+int nrf_sys_event_abs_register(uint64_t us, bool force)
+{
+	return nrf_sys_event_register_internal((uint32_t)us, force, true, false);
+}
+
+int nrf_sys_event_unregister(int handle, bool cancel)
+{
+	return nrf_sys_event_unregister_internal(handle, cancel, false);
+}
+
 #if CONFIG_NRF_SYS_EVENT_GRTC_CHAN_CNT > 0
+#if IS_ENABLED(CONFIG_NRF_TFM_SYS_EVENT_SERVICE)
+static int sys_event_tfm_gppi_conn_alloc(uint32_t evt, uint32_t tsk, uint32_t ppi_handle)
+{
+	enum tfm_platform_err_t err;
+	int32_t result;
+
+	err = tfm_platform_sys_event_gppi_conn_alloc(evt, tsk, ppi_handle, &result);
+	if (err != TFM_PLATFORM_ERR_SUCCESS) {
+		return -EPERM;
+	}
+
+	return 0;
+}
+#endif /** IS_ENABLED(CONFIG_NRF_TFM_SYS_EVENT_SERVICE) */ */
+
 int nrf_sys_event_init(void)
 {
 	/* Attempt to allocate requested amount of GRTC channels. */
@@ -265,7 +327,7 @@ int nrf_sys_event_init(void)
 	}
 
 	uint32_t chan_mask_cpy = chan_mask;
-	uint32_t tsk = nrf_rramc_task_address_get(NRF_RRAMC, NRF_RRAMC_TASK_WAKEUP);
+	uint32_t tsk = NRF_RRAMC_S_BASE + (uint32_t)NRF_RRAMC_TASK_WAKEUP;
 	bool first = true;
 	nrfx_gppi_handle_t ppi_handle;
 	nrf_grtc_event_t cc_evt;
@@ -281,10 +343,27 @@ int nrf_sys_event_init(void)
 		evt = nrf_grtc_event_address_get(NRF_GRTC, cc_evt);
 		if (first) {
 			first = false;
+#if IS_ENABLED(CONFIG_NRF_TFM_SYS_EVENT_SERVICE)
+			err = nrfx_gppi_domain_conn_alloc(nrfx_gppi_domain_id_get(evt),
+							  nrfx_gppi_domain_id_get(tsk),
+							  &ppi_handle);
+			if (err < 0) {
+				return err;
+			}
+			err = nrfx_gppi_ep_attach(evt, ppi_handle);
+			if (err < 0) {
+				return err;
+			}
+			err = sys_event_tfm_gppi_conn_alloc(evt, tsk, ppi_handle);
+			if (err < 0) {
+				return err;
+			}
+#else
 			err = nrfx_gppi_conn_alloc(evt, tsk, &ppi_handle);
 			if (err < 0) {
 				return err;
 			}
+#endif
 		} else {
 			nrfx_gppi_ep_attach(evt, ppi_handle);
 		}
